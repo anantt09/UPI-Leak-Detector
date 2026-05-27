@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="page-header mb-4 mt-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="page-title fw-bold">Transaction Dashboard</h1>
+            <p class="page-subtitle mb-0">Overview of your spending activity and leak alerts</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <!-- Premium Bank Filter Dropdown -->
+            <div class="dropdown me-2 mb-0">
+                <button class="btn pill-btn btn-light dropdown-toggle d-flex align-items-center gap-2 border" type="button" id="bankDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: auto; font-weight: 500;">
+                    <i class="bi bi-bank2 text-primary"></i> 
+                    {% if selected_bank == 'All' %}All Banks{% else %}{{ selected_bank }}{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-2" aria-labelledby="bankDropdown" style="border-radius: 16px; padding: 0.5rem; min-width: 240px; background-color: var(--card-bg); backdrop-filter: blur(10px);">
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center {% if selected_bank == 'All' %}active bg-light-blue text-primary fw-bold{% endif %}" href="{{ url_for('dashboard', bank='All') }}" style="border-radius: 10px; padding: 0.6rem 1rem; transition: all 0.2s;">
+                            <i class="bi bi-grid-fill me-3 {% if selected_bank == 'All' %}text-primary{% else %}text-muted{% endif %}"></i> All Banks
+                        </a>
+                    </li>
+                    {% if bank_accounts %}
+                    <li><hr class="dropdown-divider my-2 opacity-50"></li>
+                    <li class="px-3 py-1 text-muted fw-bold" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;">Your Accounts</li>
+                    {% for acc in bank_accounts %}
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if selected_bank == acc.bank_name %}active bg-light-blue text-primary fw-bold{% endif %}" href="{{ url_for('dashboard', bank=acc.bank_name) }}" style="border-radius: 10px; padding: 0.6rem 1rem; transition: all 0.2s;">
+                                <div>
+                                    <i class="bi bi-credit-card-2-front me-2 {% if selected_bank == acc.bank_name %}text-primary{% else %}text-muted{% endif %}"></i> {{ acc.bank_name }}
+                                </div>
+                            </a>
+                        </li>
+                    {% endfor %}
+                    {% endif %}
+                </ul>
+            </div>
+            <a href="{{ url_for('export_pdf') }}" class="btn pill-btn btn-light border" style="width: auto;"><i class="bi bi-file-earmark-pdf"></i> Export PDF</a>
+            <a href="{{ url_for('upload_csv') }}" class="btn pill-btn btn-light border" style="width: auto;">Import Statement</a>
+            <a href="{{ url_for('add_transaction') }}" class="btn pill-btn pill-btn-primary" style="width: auto;"><i class="bi bi-plus"></i> New Spend</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .metric-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .metric-link:hover {
+        transform: translateY(-3px);
+    }
+    .metric-link:hover .metric-card {
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+</style>
+
+<div class="row g-4 mb-4">
+    <!-- Metric 1: Net Worth -->
+    <div class="col-md-3">
+        <a href="#linked-accounts-section" class="metric-link">
+            <div class="metric-card" style="background: linear-gradient(135deg, #1D4ED8, #3B82F6); color: white; border: none; box-shadow: 0 10px 25px rgba(29, 78, 216, 0.3);">
+                <div class="metric-icon-badge" style="background: rgba(255,255,255,0.2); color: white;">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div class="metric-title" style="color: rgba(255,255,255,0.8);">Total Net Worth</div>
+                <div class="metric-value text-white">₹{{ "%.2f"|format(total_net_worth) }}</div>
+                <div class="metric-trend" style="color: rgba(255,255,255,0.8);">
+                    Across {{ bank_accounts|length }} connected accounts
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Metric 2: Total Spend -->
+    <div class="col-md-3">
+        <a href="#recent-transactions-section" class="metric-link">
+            <div class="metric-card">
+                <div class="metric-icon-badge bg-light-blue">
+                    <i class="bi bi-currency-rupee"></i>
+                </div>
+                <div class="metric-title">Total Spend (Spends Only)</div>
+                <div class="metric-value">₹{{ "%.2f"|format(total_spend) }}</div>
+                <div class="metric-trend text-muted">
+                    Based on {{ transactions|length }} transactions
+                </div>
+            </div>
+        </a>
+    </div>
+    
+    <!-- Metric 3: Active Alerts -->
+    <div class="col-md-3">
+        <a href="#leak-alerts-section" class="metric-link">
+            <div class="metric-card">
+                <div class="metric-icon-badge {% if leaks %}bg-light-red{% else %}bg-light-green{% endif %}">
+                    <i class="bi bi-shield-exclamation"></i>
+                </div>
+                <div class="metric-title">Active Alerts</div>
+                <div class="metric-value">{{ leaks|length }}</div>
+                <div class="metric-trend {% if leaks %}trend-down{% else %}trend-up{% endif %}">
+                    {% if leaks %}
+                        <i class="bi bi-arrow-down-right"></i> Needs attention
+                    {% else %}
+                        <i class="bi bi-check-circle"></i> Looking good
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Metric 4: Top Category -->
+    <div class="col-md-3">
+        <a href="#category-breakdown-section" class="metric-link">
+            <div class="metric-card">
+                <div class="metric-icon-badge bg-light-green">
+                    <i class="bi bi-pie-chart"></i>
+                </div>
+                <div class="metric-title">Top Category</div>
+                <div class="metric-value" style="font-size: 1.5rem; margin-top: 0.5rem; margin-bottom: 1.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {% if category_spend %}{{ category_spend[0][0] }}{% else %}N/A{% endif %}
+                </div>
+                <div class="metric-trend text-muted">
+                    {% if category_spend %}₹{{ "%.2f"|format(category_spend[0][1]) }}{% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-8">
+        <div class="glass-card p-4 h-100">
+            <h5 class="fw-bold mb-4">Spending Trend</h5>
+            <canvas id="trendChart" height="100"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4" id="category-breakdown-section">
+        <div class="glass-card p-4 h-100">
+            <h5 class="fw-bold mb-4">Category Breakdown</h5>
+            <div style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Main Transactions List -->
+    <div class="col-md-8" id="recent-transactions-section">
+        <div class="glass-card p-4 h-100" style="padding-top: 1.5rem !important;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Recent Transactions</h5>
+                <button class="btn btn-sm btn-light rounded-pill px-3 border">View All</button>
+            </div>
+            
+            <div class="transaction-list">
+                {% if transactions %}
+                    {% for txn in transactions %}
+                    <a href="{{ url_for('transaction_details', id=txn.id) }}" class="txn-row text-decoration-none text-body">
+                        <div class="txn-icon">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                        <div class="txn-details">
+                            <div class="txn-merchant">{{ txn.merchant }}</div>
+                            <div class="txn-date">{{ txn.date }} &bull; {{ txn.category }}</div>
+                        </div>
+                        <div class="txn-risk px-3 d-none d-sm-block">
+                            {% if txn.amount >= 1000 %}
+                                <span class="risk-badge risk-high"><i class="bi bi-exclamation-circle"></i> High Amt</span>
+                            {% elif "leak" in txn.merchant|lower %}
+                                <span class="risk-badge risk-high"><i class="bi bi-shield-exclamation"></i> Leak Risk</span>
+                            {% else %}
+                                <span class="risk-badge risk-low"><i class="bi bi-check-circle"></i> Normal</span>
+                            {% endif %}
+                        </div>
+                        <div class="txn-amount text-debit ms-auto">
+                            ₹{{ "%.2f"|format(txn.amount) }}
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-5 my-5">
+                        <i class="bi bi-receipt fs-1 mb-3 d-block"></i>
+                        <p>No transactions found. Upload your bank statement to get started.</p>
+                        <a href="{{ url_for('upload_csv') }}" class="btn pill-btn pill-btn-primary mt-2" style="width: auto;">Import Statement</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Connected Accounts Box -->
+        <div class="glass-card p-4 mb-4" id="linked-accounts-section">
+            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-bank text-primary"></i> Linked Accounts
+            </h5>
+            {% if bank_accounts %}
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for acc in bank_accounts %}
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between align-items-center border-bottom py-3">
+                            <div>
+                                <div class="fw-bold text-main" style="font-size: 0.95rem;">{{ acc.bank_name }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">A/C: {{ acc.account_no }}</div>
+                            </div>
+                            <div class="fw-bold text-success text-end d-flex flex-column align-items-end gap-1">
+                                <div>₹{{ "%.2f"|format(acc.current_balance) }}</div>
+                                <form action="{{ url_for('delete_bank', bank_name=acc.bank_name) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete all transactions for {{ acc.bank_name }}? This cannot be undone.');">
+                                    <button type="submit" class="btn btn-link text-danger p-0 border-0" style="font-size: 0.75rem; text-decoration: none;">
+                                        <i class="bi bi-trash"></i> Remove
+                                    </button>
+                                </form>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted text-center py-3 mb-0" style="font-size: 0.9rem;">No bank accounts linked yet. Import a statement to track balances.</p>
+            {% endif %}
+        </div>
+
+        <!-- Leak Alerts Box -->
+        <div class="glass-card p-4 mb-4" id="leak-alerts-section">
+            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-shield-exclamation {% if leaks %}text-danger{% else %}text-success{% endif %}"></i> Leak Alerts
+            </h5>
+            {% if leaks %}
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for alert in leaks %}
+                        <li class="list-group-item bg-transparent px-0 py-3 border-bottom text-muted" style="font-size: 0.9rem;">
+                            <i class="bi bi-circle-fill text-danger me-2" style="font-size: 0.5rem; vertical-align: middle;"></i> {{ alert }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-success border-0 bg-light-green mb-0 d-flex align-items-center gap-3">
+                    <i class="bi bi-shield-check fs-3"></i>
+                    <span style="font-size: 0.9rem; font-weight: 500;">No spending leaks detected. Your finances are secure!</span>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Budget Box -->
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3 d-flex justify-content-between align-items-center">
+                <span>Monthly Budget</span>
+                <button class="btn btn-sm btn-light rounded-pill border" data-bs-toggle="modal" data-bs-target="#budgetModal">Set Limit</button>
+            </h5>
+            {% if budget > 0 %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted fw-bold">₹{{ "%.2f"|format(total_spend) }}</span>
+                    <span class="text-muted">₹{{ "%.2f"|format(budget) }}</span>
+                </div>
+                <div class="progress" style="height: 10px; border-radius: 5px;">
+                    <div class="progress-bar {% if budget_used_percent > 90 %}bg-danger{% elif budget_used_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ budget_used_percent }}%;"></div>
+                </div>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.8rem;">You have used {{ "%.1f"|format(budget_used_percent) }}% of your budget.</p>
+            {% else %}
+                <p class="text-muted mb-0">No budget set. Click 'Set Limit' to start tracking your spending limit.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Frequent Merchants List -->
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3">Frequent Merchants</h5>
+            {% if frequent_merchants %}
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for merch, data in frequent_merchants %}
+                        <li class="list-group-item bg-transparent px-0 d-flex justify-content-between align-items-center border-bottom py-3">
+                            <div>
+                                <div class="fw-bold text-main" style="font-size: 0.95rem;">{{ merch[:20] }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">{{ data['count'] }} transactions</div>
+                            </div>
+                            <div class="fw-bold text-end">
+                                <div>₹{{ "%.2f"|format(data['amount']) }}</div>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted text-center py-3">Not enough data.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Budget Modal -->
+<div class="modal fade" id="budgetModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card p-2" style="border: none;">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Set Monthly Budget</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form action="{{ url_for('set_budget') }}" method="POST">
+            <div class="mb-4">
+                <label class="form-label">Budget Amount (₹)</label>
+                <div class="input-group pill-group">
+                    <span class="input-group-text fw-bold">₹</span>
+                    <input type="number" step="0.01" name="budget" class="form-control" value="{{ budget }}" required>
+                </div>
+            </div>
+            <button type="submit" class="btn pill-btn pill-btn-primary">Save Budget</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // --- Data Preparation ---
+    const transactions = [
+        {% for txn in transactions %}
+            { date: '{{ txn.date }}', amount: {{ txn.amount }} },
+        {% endfor %}
+    ];
+    
+    const dailySpend = {};
+    transactions.forEach(t => {
+        dailySpend[t.date] = (dailySpend[t.date] || 0) + t.amount;
+    });
+    
+    const sortedDates = Object.keys(dailySpend).sort();
+    const trendData = sortedDates.map(d => dailySpend[d]);
+    
+    // --- Trend Line Chart ---
+    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Daily Spend (₹)',
+                data: trendData,
+                borderColor: '#1D4ED8',
+                backgroundColor: 'rgba(29, 78, 216, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // --- Category Donut Chart ---
+    const ctxCat = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctxCat, {
+        type: 'doughnut',
+        data: {
+            labels: [{% for cat, amt in category_spend %}'{{ cat }}',{% endfor %}],
+            datasets: [{
+                data: [{% for cat, amt in category_spend %}{{ amt }},{% endfor %}],
+                backgroundColor: ['#1D4ED8', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6B7280'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }
+            },
+            cutout: '70%'
+        }
+    });
+</script>
+
+{% endblock %}

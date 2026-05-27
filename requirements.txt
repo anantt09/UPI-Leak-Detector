@@ -1,0 +1,10 @@
+Flask
+psycopg2-binary
+pandas
+Flask-Login
+Flask-Bcrypt
+werkzeug
+pdfplumber
+google-genai
+python-dotenv
+Pillow

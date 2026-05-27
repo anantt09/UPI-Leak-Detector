@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 mt-2">
+        <div class="page-header mb-4 text-center">
+            <h2 class="page-title fw-bold">Import Statement</h2>
+            <p class="page-subtitle">Upload your bank PDF statement or CSV to track spends automatically</p>
+        </div>
+        
+        <div class="glass-card">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-4 text-center">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-light-blue rounded-circle mb-3" style="width: 80px; height: 80px;">
+                        <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold">Select File</h5>
+                    <p class="text-muted small">Supports PDF or CSV formats</p>
+                </div>
+
+
+
+                <div class="mb-4">
+                    <label for="file" class="form-label">Upload Statement File</label>
+                    <input class="form-control bg-light border-0 px-4 py-3 text-muted" type="file" id="file" name="file" accept=".csv,.pdf" required style="border-radius: 9999px; box-shadow: inset 0 0 0 1px var(--border-color);">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="pdf_password" class="form-label">PDF Password (Optional)</label>
+                    <div class="input-group pill-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control" id="pdf_password" name="pdf_password" placeholder="Leave empty if not protected">
+                    </div>
+                    <div class="form-text mt-2 ms-3 text-muted" style="font-size: 0.8rem;"><i class="bi bi-info-circle me-1"></i> We do not store your password.</div>
+                </div>
+
+                <button type="submit" id="uploadBtn" class="btn pill-btn pill-btn-primary w-100 mt-2">
+                    <span id="btnText">Upload & Process</span>
+                    <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Full-screen Loading Overlay -->
+<div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 9999; color: white;">
+    <div class="text-center px-4">
+        <!-- Spinner -->
+        <div class="spinner-border text-primary mb-4" style="width: 4rem; height: 4rem; border-width: 0.4em;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h3 class="fw-bold mb-2">Processing Statement...</h3>
+        <p class="text-muted mb-0" style="color: #94A3B8 !important; font-size: 1.1rem; max-width: 500px;">Extracting and categorizing your transactions. This can take 20-30 seconds. Please do not close this window.</p>
+    </div>
+</div>
+
+<script>
+    const uploadForm = document.querySelector('form[enctype="multipart/form-data"]');
+    const overlay = document.getElementById('loadingOverlay');
+
+    function showLoading() {
+        if (overlay) {
+            overlay.classList.remove('d-none');
+        }
+        
+        const btn = document.getElementById('uploadBtn');
+        const text = document.getElementById('btnText');
+        const spinner = document.getElementById('btnSpinner');
+        
+        if (btn) btn.classList.add('disabled');
+        if (text) text.innerText = 'Processing...';
+        if (spinner) spinner.classList.remove('d-none');
+    }
+
+    if (uploadForm) {
+        // Show loading when form is submitted
+        uploadForm.addEventListener('submit', function() {
+            showLoading();
+        });
+    }
+</script>
+{% endblock %}

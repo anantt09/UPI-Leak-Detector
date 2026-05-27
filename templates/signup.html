@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="login-container">
+    <div class="trust-badges">
+        <div class="trust-badge" data-bs-toggle="modal" data-bs-target="#securityModal">
+            <i class="bi bi-shield-check"></i>
+            <div>RBI<br>Compliant</div>
+        </div>
+        <div class="trust-badge" data-bs-toggle="modal" data-bs-target="#securityModal">
+            <i class="bi bi-lock-fill"></i>
+            <div>256-bit<br>Encryption</div>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <form method="POST">
+            <div class="mb-4">
+                <label class="form-label">Choose Username</label>
+                <div class="input-group pill-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" name="username" class="form-control" placeholder="Create a username" required>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">Create Password</label>
+                <div class="input-group pill-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" name="password" class="form-control" placeholder="Create a secure password" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn pill-btn pill-btn-primary mb-4">Create Account</button>
+            
+            <div class="text-center">
+                <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                    <i class="bi bi-lock-fill text-success"></i> Secure SSL Connection
+                </p>
+                <p class="mt-4 text-muted" style="font-size: 0.875rem;">Already have an account? <a href="{{ url_for('login') }}">Sign In</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
